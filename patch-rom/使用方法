@@ -1,0 +1,11 @@
+
+需要手机链接到电脑上。因odex需要在手机上生成
+
+命令行下运行
+./start.sh
+
+如果只是单独创建升级包，只运行这个文件。目前只运行这个就可以
+create-zip.sh
+
+patch smali使用，一般不单独使用。
+framework-patch.sh
