@@ -179,7 +179,7 @@ sign_zip_file()
     #zip -d $TARGET_FILES_ZIP META
 	
 	#签名升级包
-    java -Xmx512m -jar $ROOT_PATH/tools/signapk.jar -w $ROOT_PATH/build/security/testkey.x509.pem $ROOT_PATH/build/security/testkey.pk8 $TARGET_FILES_ZIP update.zip
+    java -Xmx512m -Xmx1024m -jar $ROOT_PATH/tools/signapk.jar -w $ROOT_PATH/build/security/testkey.x509.pem $ROOT_PATH/build/security/testkey.pk8 $TARGET_FILES_ZIP update.zip
 	rm $TARGET_FILES_ZIP
     mv update.zip ../$TARGET_FILES_ZIP
     cd ..
