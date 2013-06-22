@@ -1,9 +1,9 @@
 #! /bin/sh
 
-set -o errexit
+set -e
 if [ -n $ROOT_PATH ]
 then
-	ROOT_PATH=$(cd "$(dirname "$0")"; pwd)
+	ROOT_PATH=`pwd`
     export ROOT_PATH=$ROOT_PATH
 fi
 echo "$0 ROOT_PATH=$ROOT_PATH"
@@ -28,64 +28,38 @@ TARGET_FILES_ZIP=`date +%Y%m%d`
 TARGET_FILES_ZIP=realfame_release_$TARGET_FILES_ZIP.zip
 ODEXTOOLS=$ROOT_PATH/tools/OdexTools
 chmod 777 $ODEXTOOLS
-custom_path=""
-custom_zip=""
-custom_patched=""
 
+need_create=y
 if [ $# -eq 1 ]
 then
-    custom_path=$1
-    echo "输入参数=$custom_path"
-    custom_zip=${custom_path##*/}
-    if [ "$custom_zip" = "" ]
-    then
-        custom_zip=update.zip
-    fi
-    echo "custom_zip=$custom_zip"
-    custom_path=${custom_path%/*}
-    custom_name=${custom_path##*/}
-    echo "custom_path=$custom_path"
-    echo "custom_name=$custom_name"
-    if [ "$custom_name" != "" ]
-    then
-        TARGET_FILES_ZIP=${custom_name}_${TARGET_FILES_ZIP}    
-    fi
-    echo "升级包名字：$TARGET_FILES_ZIP"
-    custom_patched=$custom_path/patched
-else
-    echo "请输入客户升级包文件路径"
-    exit
+need_create=$1
+fi
+echo "$0 need_create=$need_create"
+
+if [ "$need_create" != "n" ]
+then
+	sourec_file=../独立应用
+	zip_path=$ROOT_PATH/zip_source
 fi
 
-sourec_file=../独立应用
-
-zip_path=$custom_path/zip_source
-
-tmp_path=$custom_path/tmp
+echo "$0 zip_path=$zip_path"
+if [ "$zip_path" = "" ]
+then
+	zip_path=$ROOT_PATH/zip_source
+fi
 
 #######################
 #准备工作空间
 ready_workspace()
 {
     echo "$0 function ready_workspace"
-    if [ ! -d $custom_patched ]
-    then
-        echo "不存在patched文件夹"
-        exit
-    fi
+    rm -rf zip_source
+    mkdir zip_source
 
-    mkdir -p $tmp_path
-    cp -r $sourec_file/* $tmp_path
-    cp -r $custom_patched/framework/* $tmp_path/system/framework/
+    cp -r $sourec_file/* $zip_path
 
-    if [ "$custom_name" = "LAMTAM" ]
-    then
-        rm -rf $tmp_path/system/media
-    fi
-
-    find $tmp_path -type d -name ".svn"|xargs rm -rf
-	find $tmp_path -type d -name ".git"|xargs rm -rf
-    
+    find $zip_path -type d -name ".svn"|xargs rm -rf
+	find $zip_path -type d -name ".git"|xargs rm -rf
 }
 
 #push文件到手机
@@ -93,13 +67,12 @@ push_system()
 {
     echo "$0 function push_system"
     adb $devices remount
-
+	#adb $devices push $zip_path/system/* /system/
     adb $devices shell rm system/preinstall/*.apk
-	adb $devices push $tmp_path/system/framework /system/framework
-	adb $devices push $tmp_path/system/bin/ /system/bin
-    adb $devices push $tmp_path/system/lib/ /system/lib
-    adb $devices push $tmp_path/system/app /system/app
-    adb $devices shell rm /system/app/*.odex
+    adb $devices push $zip_path/system/app /system/app
+	adb $devices push $zip_path/system/framework /system/framework
+	adb $devices push $zip_path/system/bin/ /system/bin
+    adb $devices push $zip_path/system/lib/ /system/lib
 }
 
 #产生odex，重新签名apk
@@ -107,7 +80,7 @@ odex_apks()
 {
     echo "$0 function functodex_apks"
     adb shell chmod 777 /system/bin/dexopt-wrapper
-    for file in `ls $tmp_path/system/app/*.apk`
+    for file in `ls $zip_path/system/app/*.apk`
     do
         apk=`basename $file`
         apk=${apk%.*}
@@ -119,11 +92,11 @@ odex_apks()
         if [ "$need_odex_bool" = "yes" ] ;then
 
             adb $devices shell dexopt-wrapper /system/app/$apk.apk /system/bin/$apk.odex
-            adb $devices pull /system/bin/$apk.odex $tmp_path/system/app/
+            adb $devices pull /system/bin/$apk.odex $zip_path/system/app/
 		    adb $devices shell rm /system/bin/$apk.odex
-            zip -d $tmp_path/system/app/$apk.apk classes.dex
+            zip -d $zip_path/system/app/$apk.apk classes.dex
 		
-		    $ODEXTOOLS $tmp_path/system/app/$apk.odex
+		    $ODEXTOOLS $zip_path/system/app/$apk.odex
         fi
         
         system_apk_cert $apk.apk
@@ -183,44 +156,34 @@ sign_zip_file()
 {
     echo "$0 function sign_zip_file"
 
-    rm -rf $zip_path
-
-    echo "$0 正在解压$custom_zip 请稍等"
-    unzip $custom_path/$custom_zip -d $zip_path >/dev/null
-
-    cp -r $tmp_path/* $zip_path
-
+	#拷贝data/app 下应用到 system/app
+	#mv -f $zip_path/data/app/*.apk $zip_path/system/app
 	rm -rf $zip_path/data/
-
-    rm -f $zip_path/system/bin/dexopt-wrapper
-    adb shell rm /system/bin/dexopt-wrapper
 
     #拷贝system/preinstall 下应用到 system/app
     mv $zip_path/system/preinstall/*.apk $zip_path/system/app
     rm -rf $zip_path/system/preinstall/
 	
 	#拷贝升级脚本
-    cp -r $custom_path/META-INF $zip_path
+    cp -r $ROOT_PATH/META-INF $zip_path
 	
 	find $zip_path -type d -name ".svn"|xargs rm -rf
 	find $zip_path -type d -name ".git"|xargs rm -rf
-
-	echo "$0 正在压缩升级包"
+	
 	#压缩升级包
     cd $zip_path
     zip -q -r -y $TARGET_FILES_ZIP *
 
+    #$SIGN_TARGET_FILES_APKS -d $ROOT_PATH/build/security $TARGET_FILES_ZIP temp.zip
+    #mv temp.zip $TARGET_FILES_ZIP
+    #zip -d $TARGET_FILES_ZIP META
 	
 	#签名升级包
-    echo "$0 正在签名升级包"
-    tmpzip=`date +%N`
-    tmpzip=$tmpzip.zip
-    java -Xmx4096m -jar $ROOT_PATH/tools/signapk.jar -w $ROOT_PATH/build/security/testkey.x509.pem $ROOT_PATH/build/security/testkey.pk8 $TARGET_FILES_ZIP $tmpzip
+    java -Xmx512m -Xmx1024m -jar $ROOT_PATH/tools/signapk.jar -w $ROOT_PATH/build/security/testkey.x509.pem $ROOT_PATH/build/security/testkey.pk8 $TARGET_FILES_ZIP update.zip
 	rm $TARGET_FILES_ZIP
-    mv $tmpzip ../$TARGET_FILES_ZIP
-    cd $ROOT_PATH
-    rm -rf $zip_path
-    rm -rf $tmp_path
+    mv update.zip ../$TARGET_FILES_ZIP
+    cd ..
+    rm -rf zip_source
 }
 
 wait_for_device_online ()
@@ -244,8 +207,11 @@ wait_for_device_online ()
     fi
 }
 
-
-ready_workspace
+if [ "$need_create" != "n" ]
+then
+    echo "单独运行zip生成脚本"
+	ready_workspace
+fi
 
 push_system
 
@@ -253,6 +219,7 @@ wait_for_device_online
 
 odex_apks
 
+rm -f $zip_path/system/bin/dexopt-wrapper
 
 sign_zip_file
 

@@ -10,7 +10,7 @@ export ROOT_PATH=$ROOT_PATH
 cp_path=/home/joe/project/TJ47_SVN/trunk/patchrom
 cp $cp_path/build $ROOT_PATH -r
 cp $cp_path/META-INF $ROOT_PATH -r
-cp $cp_path/patched $ROOT_PATH -r
+#cp $cp_path/patched $ROOT_PATH -r
 cp $cp_path/tools $ROOT_PATH -r
 cp $cp_path/*.sh $ROOT_PATH
 cp $cp_path/使用方法 $ROOT_PATH
