@@ -1,6 +1,6 @@
 #! /bin/sh
 
-set -o errexit
+#set -o errexit
 if [ -n $ROOT_PATH ]
 then
 	ROOT_PATH=$(cd "$(dirname "$0")"; pwd)
@@ -23,7 +23,7 @@ apk_cert=
 ########################
 
 devices=" -d "
-SIGN_TARGET_FILES_APKS=$ROOT_PATH/tools/releasetools/sign_target_files_apks.py
+
 TARGET_FILES_ZIP=`date +%Y%m%d`
 TARGET_FILES_ZIP=realfame_release_$TARGET_FILES_ZIP.zip
 ODEXTOOLS=$ROOT_PATH/tools/OdexTools
@@ -63,24 +63,30 @@ zip_path=$custom_path/zip_source
 
 tmp_path=$custom_path/tmp
 
+export tmp_path=$tmp_path
+export zip_path=$zip_path
+
 #######################
 #准备工作空间
 ready_workspace()
 {
+    #红色字
+    echo "\033[31m请确保当前手机连接到电脑不断开\033[0m"
     echo "$0 function ready_workspace"
     if [ ! -d $custom_patched ]
     then
         echo "不存在patched文件夹"
         exit
     fi
-
+    rm -rf $tmp_path
     mkdir -p $tmp_path
     cp -r $sourec_file/* $tmp_path
     cp -r $custom_patched/framework/* $tmp_path/system/framework/
 
-    if [ "$custom_name" = "LAMTAM" ]
+    if [ -f $ROOT_PATH/$custom_path/custom.sh ]
     then
-        rm -rf $tmp_path/system/media
+        chmod 777 $ROOT_PATH/$custom_path/custom.sh
+        $ROOT_PATH/$custom_path/custom.sh
     fi
 
     find $tmp_path -type d -name ".svn"|xargs rm -rf
@@ -181,6 +187,8 @@ system_apk_cert()
 #打包到zip，然后签名
 sign_zip_file()
 {
+    #红色字
+    echo "\033[31m手机已使用完毕，可以不连接到电脑，或者制作另一个升级包\033[0m"
     echo "$0 function sign_zip_file"
 
     rm -rf $zip_path
@@ -189,6 +197,12 @@ sign_zip_file()
     unzip $custom_path/$custom_zip -d $zip_path >/dev/null
 
     cp -r $tmp_path/* $zip_path
+
+    if [ -f $ROOT_PATH/$custom_path/zip_custom.sh ]
+    then
+        chmod 777 $ROOT_PATH/$custom_path/zip_custom.sh
+        $ROOT_PATH/$custom_path/zip_custom.sh
+    fi
 
 	rm -rf $zip_path/data/
 
@@ -238,6 +252,8 @@ wait_for_device_online ()
         sleep 30
         timeout=$[$timeout - 30]
     done
+    #防止第一应用odex生成文件错误，等待1分钟机器全部启动。
+    sleep 60
     if [ $timeout -eq 0 ];then
         echo "Please ensure adb can find your device and then rerun this script."
         exit 1

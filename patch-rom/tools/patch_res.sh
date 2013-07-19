@@ -4,7 +4,7 @@
 if [ -n $ROOT_PATH ]
 then
 	ROOT_PATH=$(cd "$(dirname "$0")"; pwd)
-    ROOT_PATH=${ROOT_PATH%/*}
+    #ROOT_PATH=${ROOT_PATH%/*}
     export ROOT_PATH=$ROOT_PATH
 fi
 echo "$0 ROOT_PATH=$ROOT_PATH"
@@ -31,8 +31,9 @@ then
     echo "custom_path=$custom_path"
     echo "custom_name=$custom_name"
 else
-    echo "请输入客户升级包文件路径"
-    exit
+    #echo "请输入客户升级包文件路径"
+    #exit
+    custom_path=$ROOT_PATH
 fi
 
 file_smali_folder="framework-res"
@@ -79,12 +80,14 @@ function ready_workspace() {
         exit
     fi
 
-    jarfile=framework-res.apk
-    cp $ROOT_PATH/../独立应用/system/framework/$jarfile $realfame_path
-    cp $ROOT_PATH/source/framework/$jarfile $source_path
-    unzip -j $custom_path/$custom_zip system/framework/$jarfile -d $third_path
+    jarfile=$file_smali_folder.apk
+    #cp $ROOT_PATH/../独立应用/system/framework/$jarfile $realfame_path
+    #cp $ROOT_PATH/source/framework/$jarfile $source_path
+    #unzip -j $custom_path/$custom_zip system/framework/$jarfile -d $third_path
    
-
+	cp $ROOT_PATH/patched/source/$jarfile $source_path
+	cp $ROOT_PATH/patched/realfame/$jarfile $realfame_path
+	cp $ROOT_PATH/third/$jarfile $third_path
     
 
 	for tmp in $source_path $realfame_path $third_path
@@ -209,10 +212,10 @@ function apk_build_sign() {
     read is_ok
 
     $APKTOOL b $third_path/$file_smali_folder
-    echo "mv $third_path/$file_smali_folder/dist/framework-res.apk $custom_path/patched/framework"
-    mv $third_path/$file_smali_folder/dist/framework-res.apk $custom_path/patched/framework
+    echo "mv $third_path/$file_smali_folder/dist/$file_smali_folder.apk $custom_path/patched/framework"
+    mv $third_path/$file_smali_folder/dist/$file_smali_folder.apk $custom_path/
     
-    file=$custom_path/patched/framework/framework-res.apk
+    file=$custom_path/$file_smali_folder.apk
     tmpapk=`date +%N`
     tmpapk=$tmpzip.apk
     apk_cert=platform

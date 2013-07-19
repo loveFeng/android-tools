@@ -1,6 +1,5 @@
 #! /bin/sh
 
-set -e
 if [ -n $ROOT_PATH ]
 then
 	ROOT_PATH=$(cd "$(dirname "$0")"; pwd)
@@ -59,7 +58,7 @@ ready_workspace()
 		done
         cd $ROOT_PATH
 	done
-    for tmp2 in `find $third_path/framework -name "*.jar"`
+    for tmp2 in `find $third_path/ -name "*.jar"`
     do
         jarfile=`basename $tmp2`
         echo "tmp=$tmp2 jarfile=$jarfile"
@@ -84,7 +83,7 @@ encode_smali()
         mv $third_path/smali/$tmp/dist/* $third_path/smali
 	done
 
-    for tmp1 in `find $third_path/framework -name "*.jar"`
+    for tmp1 in `find $third_path/ -name "*.jar"`
     do
         jarfile=`basename $tmp1`
         echo "tmp=$tmp1 jarfile=$jarfile"

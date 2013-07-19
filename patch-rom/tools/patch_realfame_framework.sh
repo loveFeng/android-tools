@@ -123,11 +123,15 @@ done
 echo
 echo
 echo "patch realfame into target framework is done."
-rej_files=`find $reject_dir -name "*.rej"`
+rej_files=`find $reject_dir -name "*.rej" | sort -n`
 if [ "$rej_files" = "" ]
 then
 	echo ">>> Congratulate realfame into target framework is succeed."
 else
 	echo ">>> Sorry some files not patched Please look at $reject_dir to resolve any conflicts!"
-	echo $rej_files > $reject_dir/rej_file
+    for file in $rej_files 
+    do
+        echo $file >> $reject_dir/rej_file
+    done
+	
 fi
