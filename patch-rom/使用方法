@@ -1,11 +1,25 @@
-
+﻿
 需要手机链接到电脑上。因odex需要在手机上生成
+每一个update.zip修改后，需要更新当前客户端文件夹下到patch文件
 
-命令行下运行
-./start.sh
+以yiding为例
+
+1，将update.zip包中到 META-INF 文件夹解压出来与yiding文件夹里的 META-INF 对比
+将update.zip的META-INF updater-script 所有改动 改到 yiding META-INF 的 updater-script中
+
+2，patched文件夹是存放我们升级包版本和update.zip中不一样的jar包。 res资源，这个目前需要手动修改
+
+上面两个不同准备好以后，只要运行下面到脚本就可以生成升级包了。
 
 如果只是单独创建升级包，只运行这个文件。目前只运行这个就可以
-create-zip.sh
+create-zip.sh custom/LAMTAM/
+create-zip.sh custom/yiding/
 
-patch smali使用，一般不单独使用。
+版本文件夹中有custom.sh zip_custom.sh 是版本定制脚本，
+custom.sh是我们的内容处理
+zip_custom.sh是update.zip包的内容处理
+
+命令行下运行(暂不可用）
+./start.sh
+patch smali使用，一般不单独使用。（暂不可用）
 framework-patch.sh

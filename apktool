@@ -75,6 +75,7 @@ else
 fi
 
 # add current location to path for aapt
-PATH=$PATH:`pwd`;
+aapt_path=$(cd "$(dirname "$0")"; pwd)
+PATH=$PATH:$aapt_path;
 export PATH;
 exec java $javaOpts -jar "$jarpath" "$@"
