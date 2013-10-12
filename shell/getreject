@@ -1,0 +1,16 @@
+#!/bin/bash
+
+reject_dir=reject
+echo "patch miui into target framework is done."
+rej_files=`find $reject_dir -name "*.rej" | sort -n`
+if [ "$rej_files" = "" ]
+then
+	echo ">>> Congratulate realfame into target framework is succeed."
+else
+	echo ">>> Sorry some files not patched Please look at $reject_dir to resolve any conflicts!"
+    for file in $rej_files 
+    do
+        echo $file >> $reject_dir/rej_file
+    done
+	
+fi

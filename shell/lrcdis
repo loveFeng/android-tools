@@ -1,0 +1,465 @@
+#!/bin/bash
+
+#*********************************************
+# Name:     lrcdis （外挂式显歌词脚本）
+# Version:  090119
+# License:  GPLv3
+# Author:   xiooli solcomo bones7456
+#*********************************************
+
+Conf_file=~/.config/lrcdis.conf
+
+#=========================定义函数=============================
+
+INIT() {    #程序初始化函数
+
+    #没有参数，正确执行如果没有配置文件则会产生配置文件并加载配置，有配置文件则加载配置文件
+
+    [ -f "$Conf_file" ] || cat<< EOF > "$Conf_file"
+#===================LRCDIS-CONFIG================
+#保存lrc文件的文件夹
+Lrcdir=~/.lyrics
+#显示模式： cli, osd
+Dismode=osd
+#播放器类型： mpd, mocp, audacious, amarok, exaile, quodlibet, rhythmbox
+Player=rhythmbox
+#获取歌曲名称方式： id3 id3标签方式， filename 文件名方式
+Readname=id3
+#自身时间发生器产生时间的间隔（最好小于1秒）
+Sleeptm=0.6
+#======================[cli]=====================
+#命令行显示时的参数
+#一屏显示行数
+Row=10
+#歌曲标题的颜色（见最后的颜色定义）
+Titlecolor=\$green
+#歌曲歌词的颜色（见最后的颜色定义）
+Lyricscolor=\$smoothblue
+#======================[osd]=====================
+#osd显示时的参数
+#osd显示位置：top, bottom
+Vposition=top
+#osd对齐位置：left, right, center
+Halignment=center
+#osd最长显示时间（超过则隐藏,单位毫秒？）
+Timeout=10000
+#span size
+Size=20000
+#字体颜色： green, white, blue, yellow, grey...
+#注意，这个颜色与cli模式的颜色不是一回事
+Foreground=green
+#动画效果： off, on
+Animations=off
+#================================================
+#定义颜色（仅在cli模式下使用）
+black="38;5;0m"
+red="38;5;1m"
+green="38;5;2m"
+yellow="38;5;3m"
+blue="38;5;4m"
+magenta="38;5;55m"
+cyan="38;5;6m"
+white="37;5;0m"
+coldblue="38;5;33m"
+smoothblue="38;5;111m"
+iceblue="38;5;45m"
+turqoise="38;5;50m"
+smoothgreen="38;5;42m"
+#======================END========================
+EOF
+
+    . "$Conf_file"
+    [ ! -d "$Lrcdir" ] && mkdir -p "$Lrcdir"
+    . "$Conf_file"
+}
+
+USAGE() {   #显示帮助信息的函数
+
+    #没有参数，执行显示帮助信息
+
+    cat << EOF
+    
+    用法： $0 [选项] [参数]
+    选项：
+        -h, --help
+            显示本帮助信息并退出
+        -d, --download 
+            其后跟的参数为：  歌曲名 保存路径
+            不写路径则保存至默认目录 ${Lrcdir:-~/.lyrics}
+        -o, --osd
+            自动检查播放器并以osd模式显示歌词
+        -c, --cli
+            自动检查播放器并以cli模式显示歌词
+    备注：
+        不加任何参数则以 $Conf_file 
+        为配置文件初始化运行
+
+EOF
+}
+
+CHECK_PLAYER() {    #自动检查播放器类型的函数
+    
+    #没有参数，返回播放器类型
+    
+    local players i
+
+    #所有被支持的播放器都保存下面的字符串里面
+    players="rhythmbox audacious amarokapp exaile quodli mocp mpd mplayer"
+
+    for i in $players;do
+        if [ "`ps aux | grep "$i" | grep -v "grep"`" ];then
+            echo -n "$i"|sed "s/quodli/quodlibet/;s/amarokapp/amarok/"
+            break
+        else
+            echo -n ""
+        fi
+    done
+}
+
+DOWNLRC(){      #下载歌词的函数
+
+    #参数一个，$1 (str)： 歌曲名字; 没有返回值，正确执行会下载一个 lrc 文件至 Lrcdir
+
+    local nm lang link full_link
+
+	nm="$1"
+    Save_dir="${2:-$Lrcdir}"
+    Save_dir="${Save_dir/%\//}"
+
+	#判断当前locale，utf-8的locale将要使用编码转换
+	[ `locale |grep "LANG=.*UTF-8"` ] && lang=1
+
+	#将歌曲名字转换为urlencode，utf-8的locale必须先转换为gb的编码
+  	if [ "$lang" ];then
+    		gb="$(echo -n "$nm" | iconv -c -f utf-8 -t gbk | od -t x1 -A n -w1000|tr " " "%")"
+  	else
+    		gb="$(echo -n "$nm" | od -t x1 -A n -w1000|tr " " "%")"
+  	fi
+
+	#从sogou搜索里面找出当前歌曲的歌词下载页
+  	link="http://mp3.sogou.com/$(wget "http://mp3.sogou.com/gecisearch.so?query="$gb"" -q -T 10 \
+    -O-|grep -im1 "downlrc"|awk -F"\"" '{print $2}')"
+  	while [ "$link" ] && [ ! -s "$Save_dir/$nm.lrc" ];do
+		if [ "$lang" ];then
+			wget "$link" -T 5 -t 2 -q -O -|iconv -f gbk -t utf-8 -c -o "$Save_dir/$nm.lrc"
+		else
+			wget "$link" -T 5 -t 2 -q -O "$Save_dir/$nm.lrc"
+		fi
+		[ -s "$Lrcdir/$nm.lrc" ] && sed -i "s/\r//g" "$Save_dir/$nm.lrc" #去掉dos字符
+	done
+}
+
+GET_TITLE() {       #获取当前播放的歌曲名字
+
+    #参数两个，$1 播放器类型,默认 rhythmbox、$2 获取歌曲名字方式，默认取id3; 返回正在播放的歌曲名
+
+    local readname t a tmp
+
+    readname=${2:-id3}
+
+    case "${1:-rhythmbox}" in
+    "mpd")
+        mpc playlist|grep "^>"|sed 's/^>[0-9]*) //'|awk '{ gsub(/\.mp3|\.wma|\.MP3|\.WMA/,"",$0);print $0 }'
+    ;;
+    "mocp")
+        if [ "$readname" = "filename" ];then
+            mocp -i|grep -i "^File"|sed "s/.*\///g"|awk '{ gsub(/\.mp3|\.wma|\.MP3|\.WMA/,"",$0);print $0 }'
+        else
+            t="`mocp -i|grep "^SongTitle:"|sed "s/.*:\ //"`"
+            a="`mocp -i|grep "^Artist:"|sed "s/.*:\ //"`"
+            if [ "$t" -a "$a" ];then
+                echo "$a" - "$t"
+            else
+                mocp -i|grep -i "^File"|sed "s/.*\///g"|awk '{ gsub(/\.mp3|\.wma|\.MP3|\.WMA/,"",$0);print $0 }'
+            fi
+        fi
+    ;;
+    "audacious")
+        if [ "$readname" = "filename" ];then
+            audtool current-song-filename|sed "s/.*\///g"|awk '{ gsub(/\.mp3|\.wma|\.MP3|\.WMA/,"",$0);print $0 }'| \
+            perl -p -e 's/%(..)/pack("c", hex($1))/eg'
+        else
+            t="`audtool current-song|awk -F'-' '{printf $3}'`"
+            a="`audtool current-song|awk -F'-' '{printf $1}'`"
+            if [ "$t" -a "$a" ];then
+                echo "$a" - "$t"
+            else
+                audtool current-song-filename|sed "s/.*\///g"|awk '{ gsub(/\.mp3|\.wma|\.MP3|\.WMA/,"",$0);print $0 }'| \
+                perl -p -e 's/%(..)/pack("c", hex($1))/eg'
+            fi
+        fi
+    ;;
+    "amarok")
+            dcop amarok player nowPlaying|sed "s/.*\///g"|awk '{ gsub(/\.mp3|\.wma|\.MP3|\.WMA/,"",$0);print $0 }'
+    ;;
+    "exaile")
+        t=`dbus-send --session --print-reply --dest=org.exaile.DBusInterface /DBusInterfaceObject org.exaile.DBusInterface.get_title| \
+        sed -n '$p'|awk -F[\"\"] '{print $2}'`
+
+        tmp="`echo "$t"|awk '{ gsub(/\.mp3|\.wma|\.MP3|\.WMA/,"",$0);print $0 }'`"
+        if [ "$tmp" != "$t" ] ; then
+            echo "$tmp"
+        else
+            a="`dbus-send --session --print-reply --dest=org.exaile.DBusInterface /DBusInterfaceObject org.exaile.DBusInterface.get_artist| \
+            sed -n '$p'|awk -F[\"\"] '{print $2}'`"
+            echo "$a" - "$t"
+        fi
+    ;;
+    "quodlibet")
+        t="`dbus-send --session --print-reply --dest=net.sacredchao.QuodLibet /net/sacredchao/QuodLibet net.sacredchao.QuodLibet.CurrentSong| \
+        sed -n '/title/{n;p}'|sed q | awk -F[\"\"] '{print $2}'`"
+        a="`dbus-send --session --print-reply --dest=net.sacredchao.QuodLibet /net/sacredchao/QuodLibet net.sacredchao.QuodLibet.CurrentSong| \
+        sed -n '/artist/{n;p}'|sed '1p'|awk -F[\"\"] '{print $2}'`"
+        echo "$a" - "$t"
+    ;;
+    "rhythmbox")
+        t="`rhythmbox-client --print-playing --no-start|awk '{ gsub(/\.mp3|\.wma|\.MP3|\.WMA|未播放/,"",$0);print $0 }'`"
+        [ "$t" ] || exit
+        echo "$t"
+    ;;
+    "mplayer")
+        [ -p "/dev/shm/mfifo" -a -p "/dev/shm/ififo" -a "`ps ax|grep "mplayer"|grep "/dev/shm/mfifo"`" ] || exit
+        echo "get_file_name">/dev/shm/mfifo
+        t="`cat "/dev/shm/ififo"|awk -F"\'" '/^ANS_FILENAME/{gsub(/\.mp3|\.wma|\.MP3|\.WMA/,"",$2);print $2}'`"
+        [ "$t" ] && echo "$t"
+    ;;
+    esac
+}   
+
+GET_PLTM() {
+    
+   #参数一个，$1，播放器类型；返回播放器播放歌曲的当前时间 (转换成秒)
+    
+    local tm min sec tmptm
+
+    case "${1:-rhythmbox}" in
+    "mpd")
+        tm="`mpc | grep "/" | awk -F' ' '{print $3}' | awk -F'/' '{print $1}'`"
+        min=${tm//:*/}
+        tmptm=${tm//*:/}
+        sec=${tmptm/#0/}
+        [ "$tm" ] && echo $(($min*60+$sec))
+    ;;
+    "mocp")
+        tm="`mocp -i | grep "CurrentTime" | sed -e 's/CurrentTime:\ //'`"
+        min=${tm//:*/}
+        tmptm=${tm//*:/}
+        sec=${tmptm/#0/}
+        [ "$tm" ] && echo $(($min*60+$sec))
+    ;;
+    "audacious")
+        tm="`audtool current-song-output-length-frames`"
+        [ "$tm" ] && echo $(($tm/1000))
+    ;;
+    "amarok")
+        tm="`dcop amarok player trackCurrentTime`"
+        [ "$tm" ] && echo "$tm"
+    ;;
+    "exaile")
+        tm="`dbus-send --session --print-reply --dest=org.exaile.DBusInterface /DBusInterfaceObject org.exaile.DBusInterface.query| \
+        sed -n '$p'|awk -F['\[\]'] '{print $2}'`"
+        min=${tm//:*/}
+        tmptm=${tm//*:/}
+        sec=${tmptm/#0/}
+        [ "$tm" ] && echo $(($min*60+$sec))
+    ;;
+    "quodlibet")
+        tm="`dbus-send --session --print-reply --dest=net.sacredchao.QuodLibet /net/sacredchao/QuodLibet net.sacredchao.QuodLibet.GetPosition| \
+        sed -n '$p'|awk '{print $2}'`"
+        [ "$tm" ] && echo $(($tm/1000))
+    ;;
+    "rhythmbox")
+        tm="`qdbus org.gnome.Rhythmbox /org/gnome/Rhythmbox/Player org.gnome.Rhythmbox.Player.getElapsed`"
+        [ "$tm" ] && echo "$tm"
+    ;;
+    "mplayer")
+        [ -p "/dev/shm/mfifo" -a -p "/dev/shm/ififo" -a "`ps ax|grep "mplayer"|grep "/dev/shm/mfifo"`" ] || exit
+        echo "get_time_pos">/dev/shm/mfifo
+        tm="`cat "/dev/shm/ififo"|sed 's/^.*=//;s/\..*$//'`"
+        [ "${tm//-/}" = "$tm" -a "$tm" != "0" ] && echo "$tm"
+    ;;
+    esac
+
+}
+
+DIS_WORDS() {        #以cli或osd模式显示文字
+
+    #参数不定，$*； 正确执行或从 osd 或从终端将 $* 格式化输出
+
+    local line i
+
+    line="$*"
+
+	if [ "$Dismode" = "osd" -a "`which gnome-osd-client`" ];then
+        gnome-osd-client -f "<message id='lrcdis' osd_fake_translucent_bg='off' osd_vposition='$Vposition' osd_halignment='$Halignment' animations='$Animations' hide_timeout='$Timeout'><span size='$Size' foreground='$Foreground'>`echo -e "$line"`</span></message>"
+	else
+        if [ "`echo "$line"|sed "s/\*\{6\}$Title\*\{6\}//"`" ];then
+            N="${N:-1}"
+            [ "$N" = "1" ] && \
+            for i in `seq $Row`;do
+                tput cup "$i" 0
+                echo -n "                                                                                                 "
+            done
+            tput cup "$N" 0
+            echo -ne "\033[0;$Lyricscolor "${line/#]/}" \033[0m"
+            if [ "$N" -lt "$Row" ];then
+                ((N="$N"+1))
+            else
+                ((N=1))
+            fi
+        else
+            for i in `seq 0 $Row`;do
+                tput cup "$i" 0
+                echo -n "                                                                                                 "
+            done
+            tput cup 0 0
+            echo -ne "\033[0;$Titlecolor $line \033[0m"
+            ((N=1))
+        fi
+	fi
+}
+
+DISPLAY() {         #显示歌词函数
+
+    #参数两个，$1： 时间、$2： lrc 歌词字符串；正确执行从 osd 或从终端将找到的歌词语句格式化输出
+
+    local line tmp
+
+	if [ "$1" ] && [ "$2" ];then
+        #下面这句之所以这么繁复是为了让歌词文件里面本来是几行，但是因为某种原因合并到一行的烂文件还能正确显示
+        #例如：[02:19.46][00:59.86]XXXXXX[03:26.38][02:27.68][01:08.23]YYYYYY
+        #亦即即使你把歌曲文件连成只有一行也能正确显示而不会掉词。
+        [ "$Tm" != "$1" ] && Tm="$1" && tmp="`echo -e "$2"|grep "$1"`" && [ "$tmp" ] && \
+        DIS_WORDS "$(echo "$tmp"|awk -F"$1" '{gsub(/[[0-9]*:[0-9]*\.[0-9]*]|\.[0-9]*]/,"\n ",$2);print $2}'| \
+        grep -A2 .|tr -d "\n")"
+	fi
+}
+
+GET_STAT() {    #获取播放器的当前状态
+
+    #没有参数，有两个独立的时间循环，一个用于产生时间信号（独立于播放器的时间信号，一定循环次数以后与播放器的时间相校准，
+    #这样减少了获取播放器时间的次数，减少 cpu 开支，但是在有拖动时可能反应有一点延迟）；另一个用于间隔一定时间后获取标题
+
+    local pltm0 pltm1 n0 n1 tmptm title pass
+
+    Sleeptm=${Sleeptm:-0.6}
+
+    while :;do            
+        ((n0=${n0:-0}+1)); [ "$n0" -gt 5 ] && n0=1
+        ((n1=${n1:-0}+1)); [ "$n1" -gt 6 ] && n1=1
+        sleep $Sleeptm
+        [ "$n0" = "1" ] && [ ! "`pgrep $Player`" ] && echo -e "未发现被支持的播放器进程！" && exit
+        [ "$n0" = "1" ] && pltm0="`GET_PLTM $Player`" && \
+        if [ "${pltm0:-0}" = "$pltm1" ];then
+            echo -e "播放器已停止或未开启！"
+            pass="continue"
+            sleep 3
+            continue
+        else
+            pass=""
+            pltm1="$pltm0"
+        fi 
+        eval "$pass"
+        [ "$n1" = "1" ] && GET_TITLE $Player $Readname
+        tmptm="$(echo "${pltm0:-0}+$Sleeptm*$n0"|bc -l)"
+        tmptm=${tmptm//.*/}
+        tmptm=${tmptm:-0}
+        printf '\n%.2d:%.2d\n' $(($tmptm/60)) $(($tmptm%60))
+    done
+}
+
+MAIN() {    #主函数（集中上面的函数实现本程序的主要目的）
+
+    #没有参数，用cli或osd模式正确显示应当显示的歌词
+
+    local lrc pltm line0 line1 title
+
+    [ "`pgrep $Player`" ] || exit
+    Title="`GET_TITLE $Player $Readname`"
+    pltm="`GET_PLTM $Player`"
+
+    GET_STAT |while read line0;do
+        if [ "${line0//[0-9:]/}" ];then
+            Title="$line0"
+        else
+            pltm="$line0"
+        fi
+        [ "$line0" = "$line1" ] && continue
+        line1="$line0"
+
+        [ "$title" != "$Title" ] && title="$Title" && DIS_WORDS "******"$Title"******" && sleep 1 && \
+        if [ "${Title//播放器已停止或未开启/}" != "$Title" -o "${Title//未发现被支持的播放器进程/}" != "$Title" ];then
+            continue
+        elif [ -f "$Lrcdir/$Title.lrc" ];then
+            lrc="$(< "$Lrcdir/$Title.lrc")"
+        else
+            DOWNLRC "$Title"
+            if [ -f "$Lrcdir/$Title.lrc" ];then
+                lrc="$(< "$Lrcdir/$Title.lrc")"
+            else
+                DIS_WORDS "******未能下载歌词******"
+            fi
+        fi
+        [ "lrc" ] && DISPLAY "$pltm" "$lrc"
+    done
+}
+
+#===========================主流程==============================
+
+case "$1" in
+    "-h"|"--help")
+        USAGE
+    ;;
+    "-d"|"--download")
+        INIT
+        if [ "$2" ];then
+            DOWNLRC "$2" "$3"
+            if [ -f "$Save_dir/$2.lrc" ];then
+                echo "歌词文件 $Save_dir/$2.lrc 已保存。"
+            else
+                echo "歌词文件下载失败：（"
+            fi
+        else
+            echo "未输入歌曲名！"
+        fi
+    ;;
+    "-o"|"--osd")
+        INIT
+        Dismode=osd
+        sed -i "s/^Dismode=.*/Dismode=$Dismode/" "$Conf_file"
+        Player="`CHECK_PLAYER`"
+        if [ "$Player" ];then
+            sed -i "s/^Player=.*/Player=$Player/" "$Conf_file"
+        else
+            DIS_WORDS "未发现被支持的播放器进程！\n"
+            exit
+        fi
+        MAIN
+    ;;
+    "-c"|"--cli")
+        INIT
+        Dismode=cli
+        sed -i "s/^Dismode=.*/Dismode=$Dismode/" "$Conf_file"
+        Player="`CHECK_PLAYER`"
+        if [ "$Player" ];then
+            sed -i "s/^Player=.*/Player=$Player/" "$Conf_file"
+        else
+            DIS_WORDS "未发现被支持的播放器进程！\n"
+            exit
+        fi
+        MAIN
+    ;;
+    *)
+        INIT
+        player="`CHECK_PLAYER`"
+        [ "$Player" != "$player" ] && DIS_WORDS "默认播放器未开启，自动检测播放器。\n" && \
+        if [ "$player" ];then
+            Player="$player"
+            sed -i "s/^Player=.*/Player=$Player/" "$Conf_file"
+        else
+            DIS_WORDS "未发现被支持的播放器进程！\n"
+        fi
+        MAIN
+    ;;
+esac
+

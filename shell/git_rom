@@ -1,0 +1,14 @@
+#! /bin/bash
+folders=`ls`
+cmd_line=$@
+echo "cmd_line=$cmd_line"
+for folder in $folders
+do
+    if [ -d $folder ]
+    then
+        cd $folder #pushd $folder
+        echo "进入 $folder"
+        $cmd_line
+        cd .. #popd
+    fi
+done
