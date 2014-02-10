@@ -114,13 +114,14 @@ function file_replace_id_our(){
     c_id=$1
     our_id=$2
     file_path=$3
-    echo "file_replace_id_our $c_id,$our_id $file_path" >> $check_file
+    num=$4
+    echo "file_replace_id_our $c_id,$our_id $file_path $num" >> $check_file
     rm -f $file_path.tmp
 
     echo "s/$c_id/$our_id/" >> $check_file
     #echo "s/$c_id/$our_id/" > $cmd_line
     #sed -f $cmd_line $file_path > $file_path.tmp
-    sed -e "s/$c_id/$our_id/" $file_path > $file_path.tmp
+    sed -e "${num}s/$c_id/$our_id/" $file_path > $file_path.tmp
     rm -rf $file_path
     mv $file_path.tmp $file_path
 }
@@ -131,15 +132,17 @@ function replace_id_our(){
     our_id=$2
     #echo "replace_id_our c_id=$c_id,our_id=$our_id"
     #查询备份文件中的原始资源ID文件
-    grep "$1" $c_path.tmp -r | sort > $tmp_file
+    grep "$1" $c_path.tmp -rn | sort > $tmp_file
     
     while read line
     do
         #从变量$line的结尾, 删除最长匹配 :* 的子串
         file_path=${line%%:*}
+        line_num=${line#*:}
+        line_num=${line_num%%:*}
         #替换路径
         file_path=${file_path/$c_path.tmp/$c_path}
-        file_replace_id_our $c_id $our_id $file_path
+        file_replace_id_our $c_id $our_id $file_path $line_num
     done < $tmp_file
 }
 
