@@ -1,10 +1,13 @@
 #! /bin/bash
 
 num=1
-while [ $num -ls 10 ]
+cd base
+while [ $num -lt 20 ]
 do
-	#sudo apt-get install wine kdesvn meld xchm stardict wireshark
-	echo "num=$num"
-	num=$($num + 1)
+    echo "num=$num"
+	git pull
+	num=$(($num + 1))
 	sleep 1
 done
+echo  "123456" |  sudo -S poweroff
+
