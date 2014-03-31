@@ -1,0 +1,9 @@
+svn://192.168.1.8/TK89_JB2
+
+svnadmin create mu
+2、修改源版本库机器B中目标库的脚本“pre-revprop-change.tmpl”
+进入”D:\SVN_Repositories\ivey\hooks” (D:\SVN_Repositories 这个代码库的保存路径，视实际而定)
+
+c.输入”svnsync init file:///D:/SVN_Repositories/ivey http://192.168.10.42:88/svn/ivey/”会提示输入用户名和密码，这里提供的用户名和密码就是刚刚确认的4.a中的用户与密码；（”svnsync init file:///”这个是固定的，"D:/SVN_Repositories/ivey"这是源版本库机器B中SVN目录的路径，"http://192.168.10.42:88/svn/ivey/"这是目标版本库机器A中SVN目录路径。注意空格）
+
+继续输入"svnsync sync file:///D:/SVN_Repositories/ivey"   [D:/SVN_Repositories/ivey，为同步目录]
