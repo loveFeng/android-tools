@@ -7,6 +7,11 @@ then
 fi
 c_path=$1
 
+if [ ${c_path:(-1):1} == "/" ]
+then
+	c_path=${c_path%/} 
+fi
+
 #标准id列表
 our_file=our.txt
 #处理后的资源id
