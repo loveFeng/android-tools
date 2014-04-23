@@ -43,7 +43,7 @@ find_res_id_file=""
 ## 读取我们文件中资源id
 function read_our(){
     #查找0x1123456 0x2123456类似资源id,导出到文件中 将字符串前后添加@
-    grep "0x[12][a-z0-9]\{6\}" $our_path -rn | sort | sed 's/\(0x[12][a-z0-9]\{6\}\)/@&@/' > $our_file
+    grep "0x[12][a-z0-9]\{6\}$" $our_path -rn | sort | sed 's/\(0x[12][a-z0-9]\{6\}\)/@&@/' > $our_file
     rm $our_deal_file
     
     while read line
@@ -58,7 +58,7 @@ function read_our(){
 
 function read_c(){
     #查找0x1123456 0x2123456类似资源id,导出到文件中 将字符串前后添加@
-    grep "0x[12][a-z0-9]\{6\}" $c_path -rn | sort | sed 's/\(0x[12][a-z0-9]\{6\}\)/@&@/' > $c_file
+    grep "0x[12][a-z0-9]\{6\}$" $c_path -rn | sort | sed 's/\(0x[12][a-z0-9]\{6\}\)/@&@/' > $c_file
     rm $c_deal_file
     
     while read line

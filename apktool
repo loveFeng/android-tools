@@ -73,9 +73,5 @@ if [ "$OSTYPE" = "cygwin" ] ; then
 else
 	jarpath="$libdir/$jarfile"
 fi
-
-# add current location to path for aapt
-aapt_path=$(cd "$(dirname "$0")"; pwd)
-PATH=$PATH:$aapt_path;
-export PATH;
+export PATH=$libdir:$PATH
 exec java $javaOpts -jar "$jarpath" "$@"
