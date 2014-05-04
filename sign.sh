@@ -16,7 +16,15 @@ PORT_ROOT=$(cd "$(dirname "$0")"; pwd)
 
 tmp=`date +%N`
 echo "$apk_cert $file $PORT_ROOT $tmp"
-java -Xmx512m -Xmx1024m -Xmx2048m -jar $PORT_ROOT/signapk.jar -w $PORT_ROOT/build/security/$apk_cert.x509.pem $PORT_ROOT/build/security/$apk_cert.pk8 $file $tmp
-zipalign 4 $tmp $tmp.zlign
-mv $tmp.zlign $file
-rm -f $tmp
+#java -Xmx512m -Xmx1024m -Xmx2048m -jar $PORT_ROOT/signapk.jar -w $PORT_ROOT/build/security/$apk_cert.x509.pem $PORT_ROOT/build/security/$apk_cert.pk8 $file $tmp
+filetype=`basename $file`
+filetype=${filetype##*.}
+echo "filetype=$filetype"
+if [ "$filetype" = "apk" ]
+then
+	zipalign 4 $tmp $tmp.zlign
+	mv $tmp.zlign $file
+	rm -f $tmp
+else
+	mv $tmp $file
+fi
