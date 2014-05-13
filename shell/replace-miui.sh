@@ -1,5 +1,9 @@
 #!/bin/bash
 
+#查找标准id资源文件夹
+our_framework=framework
+#查找id的文件夹
+c_framework=framework_miui
 if [ $# -lt 1 ]
 then
     echo "请输入需要更改的文件夹"
@@ -16,8 +20,7 @@ fi
 our_file=our.txt
 #处理后的资源id
 our_deal_file=our_deal.txt
-#查找标准id资源文件夹
-our_framework=framework
+
 #标准文件夹
 our_path=android.policy
 
@@ -25,8 +28,7 @@ our_path=android.policy
 c_file=c-policy.txt
 #处理后的资源id
 c_deal_file=c.txt
-#查找id的文件夹
-c_framework=framework_miui
+
 #需要更换id的文件夹
 #c_path=android.policy_miui 
 c_id_list=c_id_list.txt
@@ -58,7 +60,10 @@ function read_our(){
 
 function read_c(){
     #查找0x1123456 0x2123456类似资源id,导出到文件中 将字符串前后添加@
-    grep "0x[12][a-z0-9]\{6\}$" $c_path -rn | sort | sed 's/\(0x[12][a-z0-9]\{6\}\)/@&@/' > $c_file
+	#查找[12] 表示android mtk
+	grep "0x[12][a-z0-9]\{6\}$" $c_path -rn | sort | sed 's/\(0x[12][a-z0-9]\{6\}\)/@&@/' > $c_file
+	#6表示小米资源id
+    #grep "0x6[a-z0-9]\{6\}$" $c_path -rn | sort | sed 's/\(0x6[a-z0-9]\{6\}\)/@&@/' > $c_file
     rm $c_deal_file
     
     while read line
@@ -76,7 +81,7 @@ function get_res_name(){
     fload=$1
     res_id=$2
     echo "get_res_name $fload $res_id" >>$check_file 
-    line=`find $fload -name "R*.smali" | xargs grep "$res_id" -rn`
+    line=`find $fload -name "R\\$*.smali" | xargs grep "$res_id" -rn`
     #line 得到字符串 "framework/smali/com/android/internal/R$string.smali:842:.field public static final lockscreen_glogin_invalid_input:I = 0x1040314"
     #从变量$line的结尾, 删除最短匹配 :* 的子串
     line=${line%:*}
@@ -190,6 +195,7 @@ function start_replace() {
     done < $c_deal_file
     
     rm -rf $c_path.tmp
+	rm -f $tmp_file
 }
 
 #test_line
