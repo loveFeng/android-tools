@@ -1,0 +1,44 @@
+在cmd下cd到文件所在目录 输入&quot;bootimg exe 功能 参数&quot;
+
+目前支持以下功能：
+
+  repack ramdisk  生成 ramdisk
+
+  unpack ramdisk  解开 ramdisk
+
+  repack bootimg  生成 bootimg  包括boot img及recovery img 
+
+  unpack bootimg  解开 bootimg
+
+  unpack updata  解开 updata app
+
+  unpack yafffs  解开 yafffs（包括data img及system img）
+
+
+supported arguments:
+        --add-head
+        --cml
+        --cpio-list
+        --czlib
+        --dml
+        --dzlib
+        --remove-head
+        --repack-565
+        --repack-bootimg
+        --repack-ramdisk
+        --repack-rle
+        --repack-zte-bin
+        --rml
+        --to-ext4
+        --to-img
+        --uml
+        --unpack-565
+        --unpack-bootimg
+        --unpack-qsb
+        --unpack-ramdisk
+        --unpack-rle
+        --unpack-updata
+        --unpack-yafffs
+        --unpack-yaffs
+        --unpack-yaffs2
+        --unpack-zte-bin
