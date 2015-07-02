@@ -1,5 +1,8 @@
 #!/bin/bash
-
+killall wget
+ROOT_PATH=$(cd "$(dirname "$0")"; pwd)
+source /etc/profile
+cd $ROOT_PATH
 i=1
 while read line
 do
@@ -19,3 +22,10 @@ do
 	fi
 done < url.txt
 
+
+#url.txt content#
+#http://kuai.xunlei.com/d/I2BEBgIILABJiMZSb05
+#http://kuai.xunlei.com/d/I2BEBgIGLAAtiMZS15d
+#http://kuai.xunlei.com/d/I2BEBgICLAADiMZS60b
+#http://kuai.xunlei.com/d/I2BEBgL8KwDMh8ZSe95
+#http://kuai.xunlei.com/d/I2BEBgofjACah8ZS0db
