@@ -26,4 +26,4 @@ getname $tmp
 activity=$name
 #echo "activity=$activity"
 
-echo "adb start -n $package/$activity"
+echo "adb shell am start -n $package/$activity"
