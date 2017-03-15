@@ -19,6 +19,8 @@ echo "$apk_cert $file $PORT_ROOT $tmp"
 java -Xmx512m -Xmx1024m -Xmx2048m -jar $PORT_ROOT/signapk.jar -w $PORT_ROOT/build/security/$apk_cert.x509.pem $PORT_ROOT/build/security/$apk_cert.pk8 $file $tmp
 filetype=`basename $file`
 filetype=${filetype##*.}
+mv $tmp $file
+exit
 echo "filetype=$filetype"
 if [ "$filetype" = "apk" ]
 then
