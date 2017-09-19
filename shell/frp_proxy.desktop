@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Exec=/home/joe/jzw/proxy/frp/frpc -c  /home/joe/jzw/proxy/frp/jzw_frpc.ini
+Hidden=false
+X-MATE-Autostart-enabled=true
+Name[zh_CN]=frp_proxy
+Name=frp_proxy
+Comment[zh_CN]=反向代理,穿局域网
+Comment=反向代理,穿局域网
+#/home/xxx/.config/autostart
